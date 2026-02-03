@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Tag 管理器 V6.6 (布局修复版)</title>
+    <style>
+        :root {
+            /* --- 深色模式 (默认) --- */
+            --bg-color: #121212;
+            --sidebar-bg: #1e1e1e;
+            --text-color: #e0e0e0;
+            --text-muted: #aaa;
+            --accent-color: #4a90e2;
+            --neg-color: #e74c3c;
+            --wiki-color: #9b59b6;
+            --border-color: #333;
+            --card-bg: #252525;
+            --hover-bg: #2d2d2d;
+            --input-bg: #1a1a1a;
+            --scrollbar-track: #1a1a1a;
+            --scrollbar-thumb: #555;
+            
+            --tag-cn-bg: #ffcc80; 
+            --tag-cn-text: #3e2723;
+            --tag-en-bg: #e0e0e0; 
+            --tag-en-text: #424242;
+
+            --shadow-color: rgba(0,0,0,0.2);
+
+            /* 可视化Tag块颜色 */
+            --active-tag-bg: #fff9c4; 
+            --active-tag-text: #333;
+            --active-tag-border: #e6ee9c;
+        }
+
+        /* --- 浅色模式变量覆盖 --- */
+        body.light-theme {
+            --bg-color: #f0f2f5;
+            --sidebar-bg: #ffffff;
+            --text-color: #333333;
+            --text-muted: #666;
+            --accent-color: #2980b9; 
+            --border-color: #e0e0e0;
+            --card-bg: #ffffff;
+            --hover-bg: #f5f5f5;
+            --input-bg: #ffffff;
+            --scrollbar-track: #f0f0f0;
+            --scrollbar-thumb: #ccc;
+            
+            --tag-en-bg: #f0f0f0; 
+            --tag-en-text: #333;
+
+            --shadow-color: rgba(0,0,0,0.08);
+            
+            --active-tag-bg: #fff9c4;
+            --active-tag-text: #333;
+            --active-tag-border: #dce775;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+        ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #888; }
+
+        /* --- 侧边栏 --- */
+        .sidebar {
+            width: 260px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            user-select: none;
+            flex-shrink: 0;
+            height: 100%;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        #sidebarContent {
+            overflow-y: auto;
+            flex: 1;
+            padding-right: 5px; 
+            margin-bottom: 10px;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* 主题开关 */
+        .theme-switch-wrapper {
+            display: flex; align-items: center; justify-content: space-between;
+            background: var(--hover-bg); padding: 8px 12px; border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        .theme-label { font-size: 13px; font-weight: bold; color: var(--text-color); }
+        .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 20px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--accent-color); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* --- 主内容区 --- */
+        .main-content {
+            flex: 1; display: flex; flex-direction: column; padding: 20px;
+            height: 100%; overflow: hidden; min-width: 0;
+        }
+
+        /* --- 提示词区域 --- */
+        .prompt-container { display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px; flex-shrink: 0; }
+        
+        .prompt-box { display: flex; flex-direction: column; gap: 5px; }
+        .prompt-header { display: flex; justify-content: space-between; align-items: center; }
+        .prompt-title { font-weight: bold; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+        
+        textarea {
+            width: 100%; background-color: var(--input-bg); border: 1px solid var(--border-color);
+            color: var(--text-color); padding: 8px; border-radius: 5px; resize: none;
+            height: 60px; font-size: 13px; font-family: Consolas, monospace;
+            transition: all 0.3s;
+        }
+        textarea:focus { border-color: var(--accent-color); outline: none; }
+
+        /* --- 可视化 Tag 块区域 (已修复重叠问题) --- */
+        .active-tag-area {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px; /* 间距 */
+            min-height: 20px;
+            padding-top: 5px;
+            align-items: flex-start; /* 顶部对齐 */
+        }
+
+        .active-tag-item {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            /* 关键修复：移除了 max-width: 150px */
+            max-width: 100%; 
+        }
+
+        .active-tag-box {
+            background-color: var(--active-tag-bg);
+            border: 1px solid var(--active-tag-border);
+            color: var(--active-tag-text);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: Consolas, monospace;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            white-space: pre-wrap; /* 允许必要时换行 */
+            word-break: break-all; /* 防止单行太长溢出 */
+        }
+
+        .active-tag-close {
+            cursor: pointer;
+            font-size: 14px;
+            color: #888;
+            font-weight: bold;
+            line-height: 1;
+            display: inline-block;
+            margin-left: 2px;
+        }
+        .active-tag-close:hover { color: #d32f2f; }
+
+        .active-tag-cn {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+            padding-left: 2px;
+            width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis; /* 中文太长还是省略号比较美观 */
+        }
+
+        /* --- 按钮 --- */
+        .btn {
+            background-color: var(--accent-color); color: white; border: none; padding: 6px 12px;
+            border-radius: 4px; cursor: pointer; font-size: 13px; white-space: nowrap; transition: 0.2s;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-danger { background-color: var(--neg-color); }
+        .btn-secondary { background-color: #7f8c8d; }
+        .btn-sm { padding: 2px 8px; font-size: 12px; }
+        
+        .icon-btn {
+            background: rgba(128,128,128,0.2); border: none; color: var(--text-color); 
+            width: 20px; height: 20px; border-radius: 3px; cursor: pointer; 
+            display: inline-flex; align-items: center; justify-content: center; 
+            font-size: 12px; margin-left: 2px;
+        }
+        .icon-btn:hover { background: var(--accent-color); color: white; }
+
+        .toolbar {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 10px; padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+
+        /* --- 侧边栏列表 --- */
+        .category-group {
+            margin-bottom: 8px; border: 1px solid var(--border-color);
+            border-radius: 6px; overflow: hidden; background-color: var(--card-bg);
+            transition: all 0.2s;
+        }
+        .category-group.dragging { opacity: 0.4; border: 1px dashed #666; }
+        .category-group.drag-over { border: 1px solid var(--accent-color); box-shadow: 0 0 5px rgba(74, 144, 226, 0.5); }
+        .category-group.collapsed .sub-cat-list { display: none; }
+        .category-group.collapsed .arrow { transform: rotate(-90deg); }
+
+        .main-cat-header {
+            padding: 10px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;
+            cursor: pointer; background-color: var(--hover-bg); color: var(--text-color);
+            border-bottom: 1px solid transparent;
+        }
+        .main-cat-header:hover { background-color: var(--accent-color); color: white; }
+        .main-cat-actions { opacity: 0; transition: 0.2s; display: flex; }
+        .main-cat-header:hover .main-cat-actions { opacity: 1; }
+        .arrow { display: inline-block; width: 12px; font-size: 10px; transition: 0.2s; color: var(--text-muted); margin-right: 5px;}
+        
+        .sub-cat-list { list-style: none; padding: 0; margin: 0; background-color: var(--sidebar-bg); border-top: 1px solid var(--border-color); }
+        
+        .sub-cat-item {
+            padding: 8px 10px 8px 28px; cursor: pointer; border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; font-size: 13px; color: var(--text-muted);
+            transition: background 0.2s;
+        }
+        .sub-cat-item:hover { background-color: var(--hover-bg); color: var(--text-color); }
+        .sub-cat-item.active { background-color: var(--accent-color); color: white; border-bottom-color: var(--accent-color); }
+        .sub-actions { display: none; }
+        .sub-cat-item:hover .sub-actions { display: flex; }
+
+        /* --- Tag 容器 --- */
+        .tag-container {
+            flex: 1; overflow-y: auto; min-height: 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            grid-auto-rows: max-content;
+            gap: 15px; padding-bottom: 40px; padding-right: 5px;
+        }
+
+        .tag-card {
+            background-color: var(--card-bg); border-radius: 6px; overflow: hidden; 
+            cursor: pointer; position: relative; transition: all 0.2s; 
+            display: flex; flex-direction: column; border: 1px solid transparent;
+            user-select: none; box-shadow: 0 2px 5px var(--shadow-color); height: 100%;
+        }
+        .tag-card:hover { transform: translateY(-2px); border-color: var(--accent-color); box-shadow: 0 5px 12px var(--shadow-color); }
+        .tag-card.dragging { opacity: 0.4; border: 2px dashed #666; transform: scale(0.95); }
+        .tag-card.drag-over { border: 2px solid var(--accent-color); transform: scale(1.02); }
+
+        .tag-image { width: 100%; height: 130px; object-fit: cover; background-color: #000; flex-shrink: 0; }
+        .hide-images .tag-image { display: none; }
+        
+        .tag-label { 
+            display: flex; flex-direction: column; width: 100%; 
+            border-radius: 0 0 4px 4px; overflow: hidden; flex-grow: 1; 
+            background-color: var(--card-bg);
+        }
+        .hide-images .tag-label { border-radius: 4px; border: 1px solid var(--border-color); }
+
+        .tag-cn {
+            background-color: var(--tag-cn-bg); color: var(--tag-cn-text);
+            font-size: 13px; font-weight: bold; text-align: center;
+            padding: 5px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .tag-en {
+            background-color: var(--tag-en-bg); color: var(--tag-en-text);
+            font-size: 12px; text-align: center; padding: 6px 4px;
+            word-break: break-all; line-height: 1.3; min-height: 36px;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .tag-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); display: none; flex-direction: column; 
+            justify-content: center; align-items: center; gap: 8px; z-index: 10; border-radius: 6px;
+        }
+        .tag-card:not(.dragging):hover .tag-overlay { display: flex; }
+        .overlay-row { display: flex; gap: 8px; }
+        .action-btn {
+            width: 32px; height: 32px; border-radius: 50%; border: none;
+            color: white; font-size: 16px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.1s;
+        }
+        .action-btn:hover { transform: scale(1.1); }
+        .btn-pos { background: var(--accent-color); }
+        .btn-neg { background: var(--neg-color); }
+        .btn-wiki { background: var(--wiki-color); font-size: 12px; font-weight: bold; }
+        .btn-edit { background: #555; width: 24px; height: 24px; font-size: 12px; }
+        .btn-del { background: #555; width: 24px; height: 24px; font-size: 12px; }
+        .btn-del:hover { background: #c0392b; }
+
+        /* 模态框 */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 1000;
+        }
+        .modal-content {
+            background: var(--card-bg); padding: 25px; border-radius: 8px; width: 400px;
+            display: flex; flex-direction: column; gap: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            color: var(--text-color);
+        }
+        input[type="text"] {
+            padding: 10px; background: var(--input-bg); border: 1px solid var(--border-color);
+            color: var(--text-color); border-radius: 4px; width: 100%; box-sizing: border-box; margin-top: 5px;
+        }
+        input:focus { border-color: var(--accent-color); outline: none; }
+        label { font-size: 12px; color: var(--text-muted); margin-bottom: 2px; display: block; font-weight: bold; }
+        .empty-state { text-align: center; color: var(--text-muted); margin-top: 50px; grid-column: 1 / -1; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 0 5px;">
+            <h3 style="margin: 0;">Tag 库 V6.6</h3>
+            <button class="btn btn-sm" onclick="addMainCategory()">+ 主分类</button>
+        </div>
+        
+        <div id="sidebarContent"></div>
+        
+        <div class="sidebar-footer">
+            <div class="theme-switch-wrapper">
+                <span class="theme-label" id="themeLabel">🌙 深色模式</span>
+                <label class="switch">
+                    <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+
+            <div style="display: flex; gap: 5px;">
+                <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="exportData()">备份</button>
+                <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="document.getElementById('fileInput').click()">恢复</button>
+            </div>
+            <input type="file" id="fileInput" style="display: none;" onchange="importData(this)">
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="prompt-container">
+            <div class="prompt-box">
+                <div class="prompt-header">
+                    <span class="prompt-title" style="color:#4a90e2">Positive Prompts</span>
+                    <div style="display: flex; gap: 5px;">
+                        <button class="btn btn-sm" onclick="copyPrompt('promptOutput')">复制</button>
+                        <button class="btn btn-sm btn-danger" onclick="clearPrompt('promptOutput', 'pos')">清空</button>
+                    </div>
+                </div>
+                <textarea id="promptOutput" placeholder="正面提示词..."></textarea>
+                <div id="activeTagsPos" class="active-tag-area"></div>
+            </div>
+
+            <div class="prompt-box">
+                <div class="prompt-header">
+                    <span class="prompt-title" style="color:#e74c3c">Negative Prompts</span>
+                    <div style="display: flex; gap: 5px;">
+                        <button class="btn btn-sm" onclick="copyPrompt('negativeOutput')">复制</button>
+                        <button class="btn btn-sm btn-danger" onclick="clearPrompt('negativeOutput', 'neg')">清空</button>
+                    </div>
+                </div>
+                <textarea id="negativeOutput" placeholder="负面提示词..."></textarea>
+                <div id="activeTagsNeg" class="active-tag-area"></div>
+            </div>
+        </div>
+
+        <div class="toolbar">
+            <div style="display: flex; flex-direction: column;">
+                <span id="breadcrumb" style="font-size: 12px; color: var(--text-muted);">分类 > 子分类</span>
+                <h2 id="currentCategoryTitle" style="margin: 0;">请选择分类</h2>
+            </div>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <label style="font-size: 14px; cursor: pointer; user-select: none;">
+                    <input type="checkbox" id="showImageToggle" onchange="toggleImages()"> 显示图片
+                </label>
+                <button class="btn" onclick="openTagModal()" id="addTagBtn" disabled>+ 新建 Tag</button>
+            </div>
+        </div>
+
+        <div class="tag-container" id="tagContainer">
+            <div class="empty-state">
+                <span style="font-size: 24px;">👈</span><br>请在左侧选择子分类
+            </div>
+        </div>
+    </div>
+
+    <div id="tagModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle" style="margin:0;">编辑 Tag</h3>
+            <div><label>英文 Prompt</label><input type="text" id="tagNameInput" placeholder="例如: open clothes"></div>
+            <div><label>中文含义</label><input type="text" id="tagCnInput" placeholder="例如: 敞开衣服"></div>
+            <div><label>参考图 URL</label><input type="text" id="tagImgInput" placeholder="https://..."></div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn" onclick="saveTag()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 全局变量 ---
+        let data = { categories: [], showImages: false }; 
+        let currentMainId = null;
+        let currentSubId = null;
+        let editingTagIndex = -1; 
+        
+        let tagDragSrcIndex = -1;
+        let sidebarDragType = null;
+        let sidebarDragSrcId = null; 
+        let sidebarDragParentId = null;
+
+        function init() {
+            const savedData = localStorage.getItem('ai_tag_tool_v6'); 
+            if (savedData) {
+                try { data = JSON.parse(savedData); } catch(e) {}
+            } else if (localStorage.getItem('ai_tag_tool_v5')) {
+                data = JSON.parse(localStorage.getItem('ai_tag_tool_v5'));
+                saveDataLocal();
+            } else {
+                seedDemoData();
+            }
+            
+            document.getElementById('showImageToggle').checked = data.showImages;
+            initTheme();
+            toggleImages();
+            renderSidebar();
+        }
+
+        // --- 主题控制 ---
+        function initTheme() {
+            const savedTheme = localStorage.getItem('ai_tag_theme') || 'dark';
+            const toggle = document.getElementById('themeToggle');
+            const label = document.getElementById('themeLabel');
+            if (savedTheme === 'light') {
+                document.body.classList.add('light-theme');
+                toggle.checked = true;
+                label.innerText = '☀️ 浅色模式';
+            } else {
+                document.body.classList.remove('light-theme');
+                toggle.checked = false;
+                label.innerText = '🌙 深色模式';
+            }
+        }
+
+        function toggleTheme() {
+            const toggle = document.getElementById('themeToggle');
+            const label = document.getElementById('themeLabel');
+            if (toggle.checked) {
+                document.body.classList.add('light-theme');
+                localStorage.setItem('ai_tag_theme', 'light');
+                label.innerText = '☀️ 浅色模式';
+            } else {
+                document.body.classList.remove('light-theme');
+                localStorage.setItem('ai_tag_theme', 'dark');
+                label.innerText = '🌙 深色模式';
+            }
+        }
+
+        function seedDemoData() {
+            data.categories = [{id: 1, name: "示例分类", expanded: true, subcategories: [{ id: 11, name: "示例", tags: [] }]}];
+            saveDataLocal();
+        }
+
+        function saveDataLocal() {
+            localStorage.setItem('ai_tag_tool_v6', JSON.stringify(data));
+        }
+
+        // --- 核心逻辑 ---
+        function addTagToPrompt(text, cnText, type, e) {
+            if(e) e.stopPropagation();
+            
+            const targetId = type === 'pos' ? 'promptOutput' : 'negativeOutput';
+            const promptBox = document.getElementById(targetId);
+            let current = promptBox.value.trim();
+            
+            if (current && !current.endsWith(',')) current += ', ';
+            promptBox.value = current + text + ', ';
+            promptBox.scrollTop = promptBox.scrollHeight;
+            
+            promptBox.style.borderColor = type === 'pos' ? '#4a90e2' : '#e74c3c';
+            setTimeout(()=>promptBox.style.borderColor= getComputedStyle(document.documentElement).getPropertyValue('--border-color'), 300);
+
+            addVisualTagBlock(text, cnText, type);
+        }
+
+        function addVisualTagBlock(text, cnText, type) {
+            const containerId = type === 'pos' ? 'activeTagsPos' : 'activeTagsNeg';
+            const container = document.getElementById(containerId);
+
+            const item = document.createElement('div');
+            item.className = 'active-tag-item';
+            
+            const box = document.createElement('div');
+            box.className = 'active-tag-box';
+            box.innerHTML = `
+                <span>${text}</span>
+                <span class="active-tag-close" onclick="removeActiveTag(this, '${text}', '${type}')">×</span>
+            `;
+
+            const cnDiv = document.createElement('div');
+            cnDiv.className = 'active-tag-cn';
+            cnDiv.innerText = cnText ? cnText : ''; 
+            cnDiv.title = cnText || ''; // 鼠标悬停显示完整中文
+
+            item.appendChild(box);
+            if(cnText) item.appendChild(cnDiv);
+            
+            container.appendChild(item);
+        }
+
+        function removeActiveTag(btnElement, text, type) {
+            const item = btnElement.closest('.active-tag-item');
+            item.remove();
+
+            const targetId = type === 'pos' ? 'promptOutput' : 'negativeOutput';
+            const promptBox = document.getElementById(targetId);
+            let current = promptBox.value;
+
+            let parts = current.split(',').map(p => p.trim()).filter(p => p !== '');
+            
+            const index = parts.indexOf(text);
+            if (index > -1) {
+                parts.splice(index, 1);
+            }
+
+            let newValue = parts.join(', ');
+            if (newValue.length > 0) newValue += ', ';
+            
+            promptBox.value = newValue;
+        }
+
+        function renderSidebar() {
+            const container = document.getElementById('sidebarContent');
+            const scrollPos = container.scrollTop;
+            container.innerHTML = '';
+
+            data.categories.forEach((mainCat) => {
+                if (mainCat.expanded === undefined) mainCat.expanded = true;
+                
+                const group = document.createElement('div');
+                group.className = `category-group ${mainCat.expanded ? '' : 'collapsed'}`;
+                group.draggable = true;
+                group.dataset.id = mainCat.id;
+                group.dataset.type = 'main';
+                group.ondragstart = (e) => handleSidebarDragStart(e, 'main', mainCat.id);
+                group.ondragover = (e) => handleSidebarDragOver(e, 'main', mainCat.id);
+                group.ondrop = (e) => handleSidebarDrop(e, 'main', mainCat.id);
+                group.ondragend = handleSidebarDragEnd;
+
+                const header = document.createElement('div');
+                header.className = 'main-cat-header';
+                header.onclick = () => { mainCat.expanded = !mainCat.expanded; saveDataLocal(); renderSidebar(); };
+                header.innerHTML = `
+                    <div style="flex:1; display:flex; align-items:center;">
+                        <span class="arrow">▼</span><span>${mainCat.name}</span>
+                    </div>
+                    <div class="main-cat-actions">
+                        <button class="icon-btn" title="编辑" onclick="editMainCategory(event, ${mainCat.id})">✏️</button>
+                        <button class="icon-btn" title="添加" onclick="addSubCategory(event, ${mainCat.id})">+</button>
+                        <button class="icon-btn" title="删除" style="background:#e74c3c;color:white;" onclick="deleteMainCategory(event, ${mainCat.id})">×</button>
+                    </div>
+                `;
+                group.appendChild(header);
+
+                const subList = document.createElement('ul');
+                subList.className = 'sub-cat-list';
+                
+                mainCat.subcategories.forEach((subCat) => {
+                    const li = document.createElement('li');
+                    li.className = `sub-cat-item ${subCat.id === currentSubId ? 'active' : ''}`;
+                    li.draggable = true;
+                    li.dataset.id = subCat.id;
+                    li.dataset.parentId = mainCat.id;
+                    li.dataset.type = 'sub';
+                    li.ondragstart = (e) => handleSidebarDragStart(e, 'sub', subCat.id, mainCat.id);
+                    li.ondragover = (e) => handleSidebarDragOver(e, 'sub', subCat.id, mainCat.id);
+                    li.ondrop = (e) => handleSidebarDrop(e, 'sub', subCat.id, mainCat.id);
+                    li.ondragend = handleSidebarDragEnd;
+
+                    li.onclick = (e) => { e.stopPropagation(); selectSubcategory(mainCat.id, subCat.id); };
+                    li.innerHTML = `
+                        <span>${subCat.name} <span style="opacity:0.5; font-size:12px;">(${subCat.tags.length})</span></span>
+                        <span class="sub-actions">
+                            <button class="icon-btn" title="编辑" onclick="editSubCategory(event, ${mainCat.id}, ${subCat.id})">✏️</button>
+                            <button class="icon-btn" title="删除" style="background:#e74c3c;color:white;" onclick="deleteSubCategory(event, ${mainCat.id}, ${subCat.id})">×</button>
+                        </span>
+                    `;
+                    subList.appendChild(li);
+                });
+                group.appendChild(subList);
+                container.appendChild(group);
+            });
+            container.scrollTop = scrollPos;
+        }
+
+        // --- 拖拽逻辑 ---
+        function handleSidebarDragStart(e, type, id, parentId = null) { e.stopPropagation(); sidebarDragType = type; sidebarDragSrcId = id; sidebarDragParentId = parentId; e.dataTransfer.effectAllowed = 'move'; e.target.classList.add('dragging'); }
+        function handleSidebarDragOver(e, type, targetId, targetParentId = null) { e.preventDefault(); e.stopPropagation(); if (sidebarDragType !== type) return; if (type === 'sub' && sidebarDragParentId !== targetParentId) return; e.currentTarget.classList.add('drag-over'); }
+        function handleSidebarDrop(e, type, targetId, targetParentId = null) {
+            e.preventDefault(); e.stopPropagation();
+            document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            if (sidebarDragType !== type) return; if (sidebarDragSrcId === targetId) return;
+            if (type === 'main') {
+                const srcIndex = data.categories.findIndex(c => c.id === sidebarDragSrcId);
+                const targetIndex = data.categories.findIndex(c => c.id === targetId);
+                if(srcIndex > -1 && targetIndex > -1) { const [moved] = data.categories.splice(srcIndex, 1); data.categories.splice(targetIndex, 0, moved); saveDataLocal(); renderSidebar(); }
+            } else if (type === 'sub') {
+                if (sidebarDragParentId !== targetParentId) return;
+                const mainCat = data.categories.find(c => c.id === targetParentId);
+                const srcIndex = mainCat.subcategories.findIndex(s => s.id === sidebarDragSrcId);
+                const targetIndex = mainCat.subcategories.findIndex(s => s.id === targetId);
+                if(srcIndex > -1 && targetIndex > -1) { const [moved] = mainCat.subcategories.splice(srcIndex, 1); mainCat.subcategories.splice(targetIndex, 0, moved); saveDataLocal(); renderSidebar(); }
+            }
+        }
+        function handleSidebarDragEnd(e) { document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging')); document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over')); sidebarDragType = null; sidebarDragSrcId = null; }
+
+        function renderTags() {
+            const container = document.getElementById('tagContainer');
+            const mainCat = data.categories.find(c => c.id === currentMainId);
+            if (!mainCat || !currentSubId) return;
+            const subCat = mainCat.subcategories.find(c => c.id === currentSubId);
+            
+            document.getElementById('currentCategoryTitle').innerText = subCat.name;
+            document.getElementById('breadcrumb').innerText = `${mainCat.name} > ${subCat.name}`;
+            document.getElementById('addTagBtn').disabled = false;
+            container.innerHTML = '';
+
+            if (subCat.tags.length === 0) {
+                container.innerHTML = '<div class="empty-state">暂无 Tag</div>';
+                return;
+            }
+
+            subCat.tags.forEach((tag, index) => {
+                const card = document.createElement('div');
+                card.className = 'tag-card';
+                card.draggable = true;
+                card.dataset.index = index;
+                card.ondragstart = handleTagDragStart;
+                card.ondragover = handleTagDragOver;
+                card.ondrop = handleTagDrop;
+                card.ondragend = handleTagDragEnd;
+
+                let imgHtml = '';
+                if (data.showImages) {
+                   if (tag.img) imgHtml = `<img src="${tag.img}" class="tag-image" loading="lazy">`;
+                   else imgHtml = `<div class="tag-image" style="background:#222;display:flex;align-items:center;justify-content:center;color:#444;font-size:12px;">无图</div>`;
+                }
+                const cnText = tag.cn || ''; 
+                card.innerHTML = `
+                    ${imgHtml}
+                    <div class="tag-label">
+                        <div class="tag-cn" title="${cnText}">${cnText || tag.name}</div>
+                        <div class="tag-en" title="${tag.name}">${tag.name}</div>
+                    </div>
+                    <div class="tag-overlay">
+                        <div class="overlay-row">
+                            <button class="action-btn btn-pos" title="+" onclick="addTagToPrompt('${tag.name}', '${cnText}', 'pos', event)">+</button>
+                            <button class="action-btn btn-neg" title="-" onclick="addTagToPrompt('${tag.name}', '${cnText}', 'neg', event)">-</button>
+                        </div>
+                        <div class="overlay-row">
+                            <button class="action-btn btn-wiki" title="Wiki" onclick="openWiki('${tag.name}', event)">Wiki</button>
+                            <button class="action-btn btn-edit" title="Edit" onclick="openTagModal(${index}, event)">✏️</button>
+                            <button class="action-btn btn-del" title="Del" onclick="deleteTag(${index}, event)">🗑️</button>
+                        </div>
+                    </div>
+                `;
+                card.onclick = () => addTagToPrompt(tag.name, cnText, 'pos');
+                container.appendChild(card);
+            });
+        }
+
+        function handleTagDragStart(e) { e.stopPropagation(); tagDragSrcIndex = parseInt(this.dataset.index); this.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/html', this.innerHTML); }
+        function handleTagDragOver(e) { e.preventDefault(); this.classList.add('drag-over'); }
+        function handleTagDrop(e) {
+            e.stopPropagation(); this.classList.remove('drag-over');
+            const targetIndex = parseInt(this.dataset.index);
+            if (tagDragSrcIndex !== targetIndex) {
+                const subCat = data.categories.find(c => c.id === currentMainId).subcategories.find(s => s.id === currentSubId);
+                const movedItem = subCat.tags.splice(tagDragSrcIndex, 1)[0];
+                subCat.tags.splice(targetIndex, 0, movedItem);
+                saveDataLocal(); renderTags();
+            }
+        }
+        function handleTagDragEnd(e) { this.classList.remove('dragging'); document.querySelectorAll('.tag-card').forEach(card => card.classList.remove('drag-over')); }
+
+        function selectSubcategory(mId, sId) { currentMainId = mId; currentSubId = sId; renderSidebar(); renderTags(); }
+        function toggleImages() {
+            data.showImages = document.getElementById('showImageToggle').checked;
+            const container = document.getElementById('tagContainer');
+            if (data.showImages) container.classList.remove('hide-images'); else container.classList.add('hide-images');
+            saveDataLocal(); renderTags();
+        }
+        function openWiki(tagName, e) { if(e) e.stopPropagation(); window.open(`https://danbooru.donmai.us/wiki_pages/${tagName.trim().replace(/\s+/g, '_')}.html`, '_blank'); }
+
+        const modal = document.getElementById('tagModal');
+        function openTagModal(index = -1, e) {
+            if(e) e.stopPropagation(); if (!currentSubId) return; editingTagIndex = index;
+            const subCat = data.categories.find(c => c.id === currentMainId).subcategories.find(s => s.id === currentSubId);
+            if (index >= 0) {
+                const tag = subCat.tags[index];
+                document.getElementById('tagNameInput').value = tag.name; document.getElementById('tagCnInput').value = tag.cn || ''; document.getElementById('tagImgInput').value = tag.img || '';
+            } else {
+                document.getElementById('tagNameInput').value = ''; document.getElementById('tagCnInput').value = ''; document.getElementById('tagImgInput').value = '';
+            }
+            modal.style.display = 'flex'; document.getElementById('tagNameInput').focus();
+        }
+        function closeModal() { modal.style.display = 'none'; }
+        function saveTag() {
+            const name = document.getElementById('tagNameInput').value.trim(); const cn = document.getElementById('tagCnInput').value.trim(); const img = document.getElementById('tagImgInput').value.trim();
+            if (!name) return alert("Prompt 不能为空");
+            const subCat = data.categories.find(c => c.id === currentMainId).subcategories.find(s => s.id === currentSubId);
+            const newTag = { name, cn, img };
+            if (editingTagIndex >= 0) subCat.tags[editingTagIndex] = newTag; else subCat.tags.push(newTag);
+            saveDataLocal(); renderTags(); renderSidebar(); closeModal();
+        }
+        function deleteTag(index, e) {
+            e.stopPropagation();
+            if (confirm("删除此 Tag？")) {
+                const subCat = data.categories.find(c => c.id === currentMainId).subcategories.find(s => s.id === currentSubId);
+                subCat.tags.splice(index, 1); saveDataLocal(); renderTags();
+            }
+        }
+        function addMainCategory() {
+            const name = prompt("新主分类名称:");
+            if(name) { data.categories.push({id:Date.now(), name, expanded:true, subcategories:[]}); saveDataLocal(); renderSidebar(); }
+        }
+        function editMainCategory(e, id) { e.stopPropagation(); const cat = data.categories.find(c => c.id === id); const newName = prompt("重命名主分类:", cat.name); if(newName) { cat.name = newName; saveDataLocal(); renderSidebar(); } }
+        function deleteMainCategory(e, id) { e.stopPropagation(); if(confirm("删除主分类？")) { data.categories=data.categories.filter(c=>c.id!==id); if(currentMainId===id){currentMainId=null;currentSubId=null;renderTags();} saveDataLocal(); renderSidebar(); } }
+        function addSubCategory(e, mid) { e.stopPropagation(); const name = prompt("新子分类名称:"); if(name) { const m = data.categories.find(c=>c.id===mid); m.expanded=true; const sid = Date.now(); m.subcategories.push({id:sid, name, tags:[]}); saveDataLocal(); renderSidebar(); selectSubcategory(mid, sid); } }
+        function editSubCategory(e, mid, sid) { e.stopPropagation(); const m = data.categories.find(c => c.id === mid); const s = m.subcategories.find(sub => sub.id === sid); const newName = prompt("重命名子分类:", s.name); if(newName) { s.name = newName; if (currentSubId === sid) document.getElementById('currentCategoryTitle').innerText = newName; saveDataLocal(); renderSidebar(); } }
+        function deleteSubCategory(e, mid, sid) { e.stopPropagation(); if(confirm("删除子分类？")) { const m = data.categories.find(c=>c.id===mid); m.subcategories=m.subcategories.filter(s=>s.id!==sid); if(currentSubId===sid) { currentSubId=null; renderTags(); } saveDataLocal(); renderSidebar(); } }
+        function copyPrompt(id) { document.getElementById(id).select(); document.execCommand('copy'); }
+        function clearPrompt(id, type) { 
+            document.getElementById(id).value = ''; 
+            const containerId = type === 'pos' ? 'activeTagsPos' : 'activeTagsNeg';
+            document.getElementById(containerId).innerHTML = '';
+        }
+        function exportData() { const blob = new Blob([JSON.stringify(data,null,2)],{type:"application/json"}); const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download="ai_tags_v6.6.json"; a.click(); }
+        function importData(input) { const f = input.files[0]; if(!f)return; const r = new FileReader(); r.onload = e => { try { data=JSON.parse(e.target.result); saveDataLocal(); location.reload(); } catch(err){alert("格式错误");} }; r.readAsText(f); }
+
+        init();
+    </script>
+</body>
+</html>
